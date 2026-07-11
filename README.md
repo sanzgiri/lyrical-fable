@@ -1,88 +1,61 @@
 # Lyrical Fable Skill
 
-An Agent Skill for creating short, lyrical fables with sparse prose, philosophical depth, and luminous imagery. It works with pi and other Agent Skills-compatible harnesses.
-
-## What This Skill Does
-
-Creates ~1000-word first-person narratives about historical, fictional, or mythological characters with:
-- Sparse, poetic prose
-- Philosophical depth
-- Contemporary voice in timeless settings
-- Dreamy, luminous imagery
-- Wonder and beauty without heavy melancholy
+An [Agent Skill](https://agentskills.io/) for creating short lyrical fables with sparse prose, philosophical depth, concrete imagery, and luminous wonder. It works with pi and other Agent Skills-compatible harnesses.
 
 ## Installation
 
 ### pi
 
-Clone this repository into pi's global skills directory:
-
 ```bash
 git clone https://github.com/sanzgiri/lyrical-fable.git ~/.pi/agent/skills/lyrical-fable
 ```
 
-Or add it for one session with `pi --skill /path/to/lyrical-fable/SKILL.md`.
+For a single session:
 
-### Other Agent Skills-compatible tools
+```bash
+pi --skill /path/to/lyrical-fable/SKILL.md
+```
 
-Place the repository directory in the tool's skills directory. The entry point is `SKILL.md`.
+For other Agent Skills-compatible tools, place the repository directory in the tool's skills directory. The entry point is `SKILL.md`.
 
-## How to Use
+## Usage
 
-Trigger the skill with requests like:
-- "Write a lyrical fable about Ada Lovelace"
-- "Create a short story about Sisyphus in the style of Zachary Mason"
-- "Give me a dreamy, philosophical narrative about Sherlock Holmes"
-- "Write a mythic story in the style of Borges about a cartographer"
+Try:
 
-## What's Included
+- “Write a lyrical fable about Ada Lovelace.”
+- “Create a dreamy philosophical narrative about Sisyphus.”
+- “Write a mythic story about a cartographer who maps dreams.”
+- “Give me three structurally different versions, each under 700 words.”
 
-- **SKILL.md**: Core instructions and workflow
-- **references/style_guide.md**: Detailed stylistic guidelines, author influences, techniques
-- **references/examples.md**: Four complete example stories demonstrating different approaches
+The skill defaults to a roughly 1000-word story, first-person narration, contemporary diction, concrete imagery, and an open, resonant ending. User-specified length, point of view, tone, and structure take precedence.
 
-## Style Characteristics
+## Narrated Output
 
-- **Voice**: First-person from character's perspective
-- **Length**: ~1000 words (900-1100 range)
-- **Language**: Contemporary, clear, precise—no archaic diction
-- **Imagery**: Concrete, specific, poetically compressed
-- **Tone**: Lyrical and luminous, embracing wonder
-- **Philosophy**: Questions emerge naturally through action and detail
-- **Structure**: Flash fiction arc with resonant endings
+The bundled renderer creates local audio with Kokoro TTS and a weighted blended narrator voice:
 
-## Author Influences
+```bash
+brew install ffmpeg espeak-ng
+python -m venv .venv && .venv/bin/pip install kokoro numpy soundfile
+.venv/bin/python scripts/narrate.py fable.md --output fable.m4a
+```
 
-Each author brings specific qualities to the style:
-- **Zachary Mason**: Spare lyricism, first-person mythological narratives
-- **Italo Calvino**: Structural inventiveness, metafictional playfulness
-- **Jorge Luis Borges**: Labyrinthine ideas, philosophical precision
-- **Alan Lightman**: Thought experiments, temporal variations
-- **Roberto Calasso**: Mythological depth, dense allusiveness
-- **Salman Rushdie**: Magical realism, exuberant language
-- **Milan Kundera**: Philosophical digression, ironic wisdom
-- **Ted Chiang**: Rigorous speculation, emotional depth
+Choose a single voice or blend voicepacks by weight:
 
-## Examples of Characters
+```bash
+.venv/bin/python scripts/narrate.py fable.md --voice af_heart --format mp3
+.venv/bin/python scripts/narrate.py fable.md --voice "af_heart:0.7,af_nicole:0.3"
+```
 
-Works with:
-- Historical figures: Ada Lovelace, Alan Turing, Marie Curie, Nikola Tesla
-- Mythological figures: Sisyphus, Icarus, Scheherazade, Orpheus
-- Fictional characters: Sherlock Holmes, Don Quixote, Alice
-- Original characters: Invented figures with specific occupations or situations
+Use `--dry-run` to inspect cleaned speech without rendering. Kokoro voicepacks download on first use.
 
-## Tips for Best Results
+## Contents
 
-1. **Be specific about the character** you want featured
-2. **Mention the style** if you want emphasis on particular authors (e.g., "more Borges-like")
-3. **Request variations** if you want multiple versions of the same story
-4. **Specify tone** if you want more humor, lightness, or particular philosophical themes
-5. **Indicate length** if you prefer shorter (500-700) or longer (1200-1500) pieces
+- `SKILL.md` — core workflow and quality checklist
+- `references/style_guide.md` — detailed craft guidance
+- `references/examples.md` — four calibration examples
+- `scripts/narrate.py` — local Kokoro narration with weighted voice blending
+- `LICENSE` — MIT license
 
 ## Version
 
-1.0 - Initial release (December 2024)
-
-## Created By
-
-Created using the Skill Creator framework for Claude
+1.3.0
