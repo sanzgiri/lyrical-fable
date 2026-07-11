@@ -25,6 +25,33 @@ from pathlib import Path
 
 SAMPLE_RATE = 24_000
 
+PRESETS = {
+    "mythic": {
+        "voice": "af_heart:0.6,am_fenrir:0.4",
+        "speed": 0.86,
+        "quote_speed": 0.82,
+        "target_lufs": -16.0,
+    },
+    "intimate": {
+        "voice": "af_nicole:0.65,af_heart:0.35",
+        "speed": 0.82,
+        "quote_speed": 0.78,
+        "target_lufs": -18.0,
+    },
+    "meditative": {
+        "voice": "af_heart:0.7,am_onyx:0.3",
+        "speed": 0.76,
+        "quote_speed": 0.72,
+        "target_lufs": -18.0,
+    },
+    "dramatic": {
+        "voice": "am_fenrir:0.6,af_kore:0.4",
+        "speed": 0.96,
+        "quote_speed": 0.92,
+        "target_lufs": -16.0,
+    },
+}
+
 
 @dataclass
 class Block:
@@ -170,20 +197,69 @@ def encode(wav_path: Path, output: Path, fmt: str, target_lufs: float) -> None:
     ])
 
 
+def embed_cover(audio_path: Path, cover_path: Path) -> None:
+    """Attach PNG cover art to an M4A or MP3 without re-encoding audio."""
+    if shutil.which("ffmpeg") is None:
+        raise SystemExit("ffmpeg is required to embed cover art")
+    temporary = audio_path.with_name(audio_path.stem + ".cover" + audio_path.suffix)
+    if audio_path.suffix.lower() == ".m4a":
+        command = [
+            "ffmpeg", "-y", "-loglevel", "error", "-i", str(audio_path),
+            "-i", str(cover_path), "-map", "0:a", "-map", "1:v", "-c:a", "copy",
+            "-c:v", "mjpeg", "-disposition:v", "attached_pic", str(temporary),
+        ]
+    elif audio_path.suffix.lower() == ".mp3":
+        command = [
+            "ffmpeg", "-y", "-loglevel", "error", "-i", str(audio_path),
+            "-i", str(cover_path), "-map", "0:a", "-map", "1:v", "-c:a", "copy",
+            "-c:v", "mjpeg", "-id3v2_version", "3", "-metadata:s:v", "title=Cover",
+            "-metadata:s:v", "comment=Cover", str(temporary),
+        ]
+    else:
+        return
+    try:
+        run(command)
+        temporary.replace(audio_path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Narrate a lyrical fable with local Kokoro TTS.")
-    parser.add_argument("input", help="Markdown or plain-text fable")
+    parser.add_argument("input", nargs="?", help="Markdown or plain-text fable")
     parser.add_argument("-o", "--output", help="output path; defaults to <input>.<format>")
     parser.add_argument("--format", choices=("m4a", "mp3", "wav"), default="m4a")
-    parser.add_argument("--voice", default="af_heart:0.7,af_nicole:0.3", help="Kokoro voice or weighted blend")
+    parser.add_argument("--preset", choices=tuple(PRESETS), default="mythic", help="narration style preset")
+    parser.add_argument("--list-presets", action="store_true", help="list narration presets and exit")
+    parser.add_argument("--voice", help="Kokoro voice or weighted blend; overrides the preset")
     parser.add_argument("--quote-voice", help="optional voice/blend for Markdown blockquotes")
-    parser.add_argument("--speed", type=float, default=0.88, help="Kokoro speech speed")
-    parser.add_argument("--quote-speed", type=float, default=0.84)
+    parser.add_argument("--speed", type=float, help="Kokoro speech speed; overrides the preset")
+    parser.add_argument("--quote-speed", type=float, help="quote speed; overrides the preset")
     parser.add_argument("--lang", default="a", help="Kokoro language code (default: American English)")
-    parser.add_argument("--target-lufs", type=float, default=-16.0, help="loudness target for compressed output")
+    parser.add_argument("--target-lufs", type=float, help="loudness target; overrides the preset")
+    parser.add_argument("--script-output", help="path for the cleaned narration script")
+    parser.add_argument("--no-script", action="store_true", help="do not save the cleaned narration script")
+    parser.add_argument("--cover-art", action="store_true", help="generate and attach local Flux cover art")
+    parser.add_argument("--cover-output", help="cover PNG path; defaults beside the audio")
+    parser.add_argument("--cover-prompt", help="prompt for cover-art generation")
+    parser.add_argument("--cover-host", default=os.environ.get("LOCAL_MODELS_HOST", "shalini.local"))
+    parser.add_argument("--cover-port", type=int, default=8000)
     parser.add_argument("--dry-run", action="store_true", help="print cleaned speech without rendering")
     parser.add_argument("--keep-wav", action="store_true", help="keep the intermediate WAV beside the output")
     args = parser.parse_args(argv)
+
+    if args.list_presets:
+        for name, preset in PRESETS.items():
+            print(f"{name:11} voice={preset['voice']} speed={preset['speed']}")
+        return 0
+    if not args.input:
+        parser.error("input is required unless --list-presets is used")
+
+    preset = PRESETS[args.preset]
+    voice_spec = args.voice or preset["voice"]
+    speed = args.speed if args.speed is not None else preset["speed"]
+    quote_speed = args.quote_speed if args.quote_speed is not None else preset["quote_speed"]
+    target_lufs = args.target_lufs if args.target_lufs is not None else preset["target_lufs"]
 
     input_path = Path(args.input)
     if not input_path.is_file():
@@ -195,6 +271,14 @@ def main(argv: list[str] | None = None) -> int:
         print("\n\n".join(block.text for block in blocks))
         return 0
 
+    output = Path(args.output) if args.output else input_path.with_suffix("." + args.format)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if not args.no_script:
+        script_path = Path(args.script_output) if args.script_output else output.with_suffix(".narration.txt")
+        script_path.parent.mkdir(parents=True, exist_ok=True)
+        script_path.write_text("\n\n".join(block.text for block in blocks) + "\n", encoding="utf-8")
+        print(f"[script] {script_path}", file=sys.stderr)
+
     try:
         import numpy as np
         import soundfile as sf
@@ -205,17 +289,15 @@ def main(argv: list[str] | None = None) -> int:
     if shutil.which("espeak-ng") is None:
         raise SystemExit("espeak-ng is required by Kokoro; install it with: brew install espeak-ng")
 
-    output = Path(args.output) if args.output else input_path.with_suffix("." + args.format)
-    output.parent.mkdir(parents=True, exist_ok=True)
     pipeline = KPipeline(lang_code=args.lang)
-    primary = load_blended_voice(pipeline, args.voice)
+    primary = load_blended_voice(pipeline, voice_spec)
     quote = load_blended_voice(pipeline, args.quote_voice) if args.quote_voice else None
 
     audio_parts = []
     for block in blocks:
         voice = quote if block.quote and quote is not None else primary
-        speed = args.quote_speed if block.quote and quote is not None else args.speed
-        audio_parts.append(render_text(pipeline, block.text, voice, speed))
+        block_speed = quote_speed if block.quote and quote is not None else speed
+        audio_parts.append(render_text(pipeline, block.text, voice, block_speed))
         audio_parts.append(silence(0.65 if block.quote else 0.4))
     audio = np.concatenate(audio_parts)
 
@@ -223,11 +305,29 @@ def main(argv: list[str] | None = None) -> int:
     wav_path = temp_dir / "narration.wav"
     try:
         sf.write(str(wav_path), np.clip(audio, -1.0, 1.0), SAMPLE_RATE)
-        encode(wav_path, output, args.format, args.target_lufs)
+        encode(wav_path, output, args.format, target_lufs)
         if args.keep_wav and args.format != "wav":
             shutil.copy2(wav_path, output.with_suffix(".wav"))
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+
+    if args.cover_art:
+        try:
+            from cover_art import generate_cover_art
+        except ImportError as exc:
+            raise SystemExit("could not load scripts/cover_art.py") from exc
+        cover_path = Path(args.cover_output) if args.cover_output else output.with_suffix(".png")
+        title = blocks[0].text.rstrip(".!?")
+        prompt = args.cover_prompt or (
+            f"Square literary cover art for a mythic fable titled '{title}'. "
+            "Symbolic, luminous, dreamlike, painterly, no words, no letters, no typography."
+        )
+        try:
+            generate_cover_art(prompt, cover_path, args.cover_host, args.cover_port)
+            embed_cover(output, cover_path)
+            print(f"[cover] {cover_path}", file=sys.stderr)
+        except RuntimeError as exc:
+            raise SystemExit(str(exc)) from exc
 
     print(f"[done] {output}", file=sys.stderr)
     return 0

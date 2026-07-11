@@ -3,7 +3,7 @@ name: lyrical-fable
 description: Create short lyrical fables (~1000 words) about historical, fictional, mythological, or original characters. Use for lyrical fables, mythic stories, dreamy philosophical narratives, or poetic first-person fiction. Favor sparse, precise prose, concrete imagery, philosophical depth, and luminous wonder.
 license: MIT
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 # Lyrical Fable
@@ -43,22 +43,56 @@ The defaults below are starting points. Always follow the user's requested lengt
 - **Original:** Give the character a specific occupation, object, or predicament that makes the abstract theme tangible.
 - **Multiple versions:** Vary the structure or governing image, not merely the adjectives.
 
+## Saving Fables
+
+When the user asks to keep a generated fable, save the source Markdown under `examples/generated/` with metadata rather than leaving it only in chat:
+
+```bash
+python scripts/save_fable.py --subject Sisyphus --prompt "A recursive fable about memory" < fable.md
+```
+
+Use `--source-tradition` when the mythic or historical source matters. The helper adds the date, subject, prompt, and source-tradition metadata and refuses to overwrite an existing file unless `--force` is supplied.
+
+## Model Selection and Length
+
+The skill is model-agnostic: it uses whichever model is active in pi. On this setup, local Ollama models are available through `~/.pi/agent/models.json`:
+
+```bash
+pi --model shalini/qwen3.6:35b-a3b "Write a lyrical fable about Sisyphus."
+pi --model shalini/qwen3-coder:30b "Write a lyrical fable about Ada Lovelace."
+```
+
+The local server must be reachable at `shalini.local:11434`; interactive users can also switch with `/model`. The default length is 900–1100 words, but explicit requests override it. There is no skill-level maximum: practical limits come from the selected model's context window and output-token limit. For the configured 32K-context local models, roughly 1,000–3,000 words is comfortable; longer pieces are better generated in titled installments to preserve coherence.
+
 ## Narrated Output
 
 When the user asks for an audio or narrated version, first finish and save the fable as Markdown, then use the bundled renderer:
 
 ```bash
-python scripts/narrate.py fable.md --output fable.m4a
+python scripts/narrate.py fable.md --preset mythic --output fable.m4a
 ```
 
-The renderer uses local Kokoro TTS and defaults to a weighted narrator blend (`af_heart:0.7,af_nicole:0.3`). Override it with a single voice or another weighted blend:
+The renderer uses local Kokoro TTS, saves a cleaned `fable.narration.txt` beside the audio by default, and supports these presets:
+
+```bash
+python scripts/narrate.py fable.md --list-presets
+# mythic, intimate, meditative, dramatic
+```
+
+Override a preset with a single voice or another weighted blend:
 
 ```bash
 python scripts/narrate.py fable.md --voice af_heart --format mp3
 python scripts/narrate.py fable.md --voice "af_heart:0.7,af_nicole:0.3" --speed 0.88
 ```
 
-Use `--quote-voice` only when blockquoted passages should sound distinct. Use `--dry-run` to inspect the cleaned speech without generating audio. The renderer requires `kokoro`, `numpy`, `soundfile`, `ffmpeg`, and `espeak-ng`; voicepacks download on first use.
+Use `--quote-voice` when blockquoted passages should sound distinct, `--script-output` to choose the cleaned-script path, and `--no-script` to disable the sidecar. With the optional local Flux server available, generate and embed square cover art in M4A/MP3 output:
+
+```bash
+python scripts/narrate.py fable.md --preset mythic --cover-art --output fable.m4a
+```
+
+Use `--cover-prompt` for a custom image prompt. The renderer requires `kokoro`, `numpy`, `soundfile`, `ffmpeg`, and `espeak-ng`; voicepacks download on first use. Cover art additionally requires the local Flux endpoint at `shalini.local:8000`.
 
 ## Final Checklist
 
@@ -77,4 +111,6 @@ Use `--quote-voice` only when blockquoted passages should sound distinct. Use `-
 
 - `references/style_guide.md` — detailed craft guidance, structural options, imagery, tone, and pitfalls.
 - `references/examples.md` — four example fables for historical, mythological, fictional, and original protagonists.
-- `scripts/narrate.py` — local Kokoro narration with weighted voice blending and MP3/M4A/WAV output.
+- `scripts/save_fable.py` — archive generated fables with dated metadata.
+- `scripts/narrate.py` — local Kokoro narration with presets, weighted voice blending, narration sidecars, and MP3/M4A/WAV output.
+- `scripts/cover_art.py` — optional local Flux cover-art generation.

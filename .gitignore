@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.venv/
+*.aiff
+*.m4a
+*.mp3
+*.wav
+*.png
