@@ -15,7 +15,7 @@ type Controls = {
   custom: string;
 };
 
-type Story = { id: string | null; title: string; body: string; controls: Controls; created_at?: string; source?: string; audio_path?: string | null };
+type Story = { id: string | null; title: string; body: string; controls: Controls; created_at?: string; source?: string; storage?: "local" | "cloud" | null; audio_path?: string | null };
 
 const initial: Controls = {
   subject: "",
@@ -55,6 +55,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [narrating, setNarrating] = useState(false);
   const [localNarration, setLocalNarration] = useState(false);
+  const [localLibrary, setLocalLibrary] = useState(false);
+  const [libraryPath, setLibraryPath] = useState("");
   const [narrationPreset, setNarrationPreset] = useState("mythic");
   const [hos, setHos] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -67,7 +69,16 @@ export default function Home() {
       .catch(() => undefined);
     fetch("/api/config")
       .then((response) => response.json())
-      .then((data) => setLocalNarration(Boolean(data.localNarration)))
+      .then((data) => {
+        setLocalNarration(Boolean(data.localNarration));
+        setLocalLibrary(Boolean(data.localLibrary));
+        if (data.localLibrary) {
+          fetch("/api/library")
+            .then((response) => response.json())
+            .then((library) => { setStories(library.stories || []); setLibraryPath(library.path || ""); })
+            .catch(() => undefined);
+        }
+      })
       .catch(() => undefined);
   }, []);
 
@@ -176,7 +187,7 @@ export default function Home() {
         </section>
 
         <section className="library" id="samples"><h3>Listen to examples</h3><p className="notice">The hosted studio offers these sample narrations. Full-fable narration, blended voices, and optional Hearts of Space ambience run locally.</p><div className="library-grid">{samples.map((sample) => <article className="story-card" key={sample.title}><strong>{sample.title}</strong><small>{sample.note}</small><p>{sample.text}</p><audio className="sample-audio" controls preload="none" src={sample.audio}>Your browser does not support audio playback.</audio></article>)}</div></section>
-        <section className="library"><h3>Your saved fables</h3>{stories.length ? <div className="library-grid">{stories.map((item) => <button className="story-card" key={item.id || item.title} onClick={() => chooseStory(item)}><strong>{item.title}</strong><small>{item.created_at ? new Date(item.created_at).toLocaleDateString() : "This session"}</small></button>)}</div> : <p className="notice">Generated stories will be saved here when Supabase storage is configured.</p>}</section>
+        <section className="library"><h3>{localLibrary ? "Local Fables" : "Saved Fables"}</h3>{stories.length ? <div className="library-grid">{stories.map((item) => <button className="story-card" key={item.id || item.title} onClick={() => chooseStory(item)}><strong>{item.title}</strong><small>{item.created_at ? new Date(item.created_at).toLocaleDateString() : "This session"}</small></button>)}</div> : <p className="notice">{localLibrary ? `New fables are saved outside this repository in ${libraryPath || "your local library folder"}.` : "Cloud story saving is optional and requires Supabase."}</p>}</section>
         <footer className="footer">Lyrical Fable Studio · created by Ashutosh Sanzgiri</footer>
       </div>
     </main>

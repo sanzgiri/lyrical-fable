@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildPrompt, fallbackFable, type FableControls } from "@/lib/prompts";
 import { getSupabase } from "@/lib/supabase";
+import { saveLocalStory } from "@/lib/local-library";
 import { getSessionId, setSessionCookie } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -44,7 +45,7 @@ function parseOllamaFable(raw: string, subject: string) {
     const cleaned = raw.replace(/^```(?:markdown)?\s*/i, "").replace(/```\s*$/i, "").trim();
     const titleMatch = cleaned.match(/^(?:#\s*|title:\s*|\*\*)([^\n*]+?)(?:\*\*)?\s*\n+/i);
     if (titleMatch) {
-      return { title: titleMatch[1].trim(), body: cleaned.slice(titleMatch[0].length).trim() };
+      return { title: titleMatch[1].trim().replace(/^title:\s*/i, ""), body: cleaned.slice(titleMatch[0].length).trim() };
     }
     return { title: `A Fable of ${subject}`, body: cleaned };
   }
@@ -136,6 +137,7 @@ export async function POST(request: NextRequest) {
 
   const supabase = getSupabase();
   let id: string | null = null;
+  let storage: "cloud" | "local" | null = null;
   if (supabase) {
     const { data, error } = await supabase
       .from("stories")
@@ -146,10 +148,17 @@ export async function POST(request: NextRequest) {
       console.error("story persistence failed", error);
     } else {
       id = data.id;
+      storage = "cloud";
+    }
+  } else {
+    const localStory = await saveLocalStory(story.title, story.body, controls);
+    if (localStory) {
+      id = localStory.id;
+      storage = "local";
     }
   }
 
-  const response = NextResponse.json({ id, ...story, controls, source });
+  const response = NextResponse.json({ id, storage, ...story, controls, source });
   if (session.isNew) setSessionCookie(response, session.id);
   return response;
 }

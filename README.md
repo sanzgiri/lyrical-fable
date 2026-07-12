@@ -177,7 +177,8 @@ The `web/` app provides a hosted writing studio with the core controls, a saved-
 
 - **Host:** Vercel + Next.js
 - **Story generation:** server-side Gemini 2.5 Flash adapter in production, or local Ollama when the UI runs on the LAN
-- **Story storage:** Supabase Postgres
+- **Local story storage:** Markdown files in `~/LyricalFableLibrary` (outside Git)
+- **Optional cloud story storage:** Supabase Postgres
 - **Narration:** local Kokoro only, with weighted voice blends and optional Hearts of Space ambience
 - **Cloud samples:** static text-and-audio examples are published with the site; the hosted app does not narrate arbitrary fables
 - **PDF:** generated on demand for saved cloud stories
@@ -204,7 +205,7 @@ HOSIFY_PYTHON=/Users/sanzgiri/projects/hosify/venv/bin/python
 HOSIFY_SCRIPT=/Users/sanzgiri/projects/hosify/hos_simple.py
 ```
 
-The local app uses Ollama for text and Kokoro for narration. For cloud, set `GEMINI_API_KEY` and optional Supabase keys; the hosted app deliberately shows sample recordings instead of exposing arbitrary narration.
+The local app uses Ollama for text, saves generated Markdown fables in `~/LyricalFableLibrary`, and uses Kokoro for narration. For cloud, set `GEMINI_API_KEY` and optional Supabase keys; the hosted app deliberately shows sample recordings instead of exposing arbitrary narration.
 
 ### Deploy
 
@@ -227,6 +228,7 @@ After deployment, verify generation, optional story persistence, PDF download fo
 - `references/style_guide.md` — detailed craft guidance
 - `references/examples.md` — four calibration examples
 - `scripts/save_fable.py` — archive generated fables with dated metadata
+- `TODO.md` — local-PDF and cloud-auth follow-up work
 - `scripts/narrate.py` — Kokoro narration with blended presets, optional Hearts of Space ambience, and sidecars
 - `scripts/cover_art.py` — optional local Flux cover-art generation
 - `LICENSE` — MIT license
