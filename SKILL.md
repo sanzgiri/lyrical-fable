@@ -3,7 +3,7 @@ name: lyrical-fable
 description: Create short lyrical fables (~1000 words) about historical, fictional, mythological, or original characters. Use for lyrical fables, mythic stories, dreamy philosophical narratives, or poetic first-person fiction. Favor sparse, precise prose, concrete imagery, philosophical depth, and luminous wonder.
 license: MIT
 metadata:
-  version: "1.4.0"
+  version: "1.5.0"
 ---
 
 # Lyrical Fable
@@ -86,7 +86,13 @@ python scripts/narrate.py fable.md --voice af_heart --format mp3
 python scripts/narrate.py fable.md --voice "af_heart:0.7,af_nicole:0.3" --speed 0.88
 ```
 
-Use `--quote-voice` when blockquoted passages should sound distinct, `--script-output` to choose the cleaned-script path, and `--no-script` to disable the sidecar. With the optional local Flux server available, generate and embed square cover art in M4A/MP3 output:
+Use `--quote-voice` when blockquoted passages should sound distinct, `--script-output` to choose the cleaned-script path, and `--no-script` to disable the sidecar. Apply the optional local Hearts of Space ambience after the blended narration with `--hos`:
+
+```bash
+python scripts/narrate.py fable.md --preset meditative --hos --hos-preset hos_smooth --output fable.mp3
+```
+
+HOS uses `hosify` and is local-only; set `HOSIFY_PYTHON` and `HOSIFY_SCRIPT` if it is not in the default local path. With the optional local Flux server available, generate and embed square cover art in M4A/MP3 output:
 
 ```bash
 python scripts/narrate.py fable.md --preset mythic --cover-art --output fable.m4a
@@ -112,5 +118,5 @@ Use `--cover-prompt` for a custom image prompt. The renderer requires `kokoro`, 
 - `references/style_guide.md` — detailed craft guidance, structural options, imagery, tone, and pitfalls.
 - `references/examples.md` — four example fables for historical, mythological, fictional, and original protagonists.
 - `scripts/save_fable.py` — archive generated fables with dated metadata.
-- `scripts/narrate.py` — local Kokoro narration with presets, weighted voice blending, narration sidecars, and MP3/M4A/WAV output.
+- `scripts/narrate.py` — local Kokoro narration with blended presets, optional Hearts of Space ambience, sidecars, and MP3/M4A/WAV output.
 - `scripts/cover_art.py` — optional local Flux cover-art generation.

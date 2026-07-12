@@ -129,6 +129,20 @@ Inspect cleaned speech without rendering:
 .venv/bin/python scripts/narrate.py fable.md --dry-run
 ```
 
+### Optional Hearts of Space ambience
+
+Apply the local **Hearts of Space** effect after narration for a spacious, floating reverb tail. It uses `hosify` and normalizes once at the selected loudness target:
+
+```bash
+.venv/bin/python scripts/narrate.py fable.md \
+  --preset meditative \
+  --hos \
+  --hos-preset hos_smooth \
+  --output fable.mp3
+```
+
+Set `HOSIFY_PYTHON` and `HOSIFY_SCRIPT` if `hosify` is not at its default local path. HOS is an optional local-only effect.
+
 ### Optional cover art
 
 With the local Flux server available at `shalini.local:8000`, generate a square PNG and embed it into M4A or MP3 metadata:
@@ -164,9 +178,10 @@ The `web/` app provides a hosted writing studio with the core controls, a saved-
 - **Host:** Vercel + Next.js
 - **Story generation:** server-side Gemini 2.5 Flash adapter in production, or local Ollama when the UI runs on the LAN
 - **Story storage:** Supabase Postgres
-- **Audio storage/playback:** Supabase Storage, with server-side OpenAI TTS
-- **PDF:** generated on demand by the server route
-- **Local mode:** use Pi with Ollama for private/local generation; Vercel cannot reach `shalini.local`
+- **Narration:** local Kokoro only, with weighted voice blends and optional Hearts of Space ambience
+- **Cloud samples:** static text-and-audio examples are published with the site; the hosted app does not narrate arbitrary fables
+- **PDF:** generated on demand for saved cloud stories
+- **Local mode:** use Ollama + Kokoro for private/local generation and narration; Vercel cannot reach `shalini.local`
 
 ### Run locally
 
@@ -177,16 +192,19 @@ npm install
 npm run dev
 ```
 
-Run `web/supabase/schema.sql` in the Supabase SQL editor, then set these server-side values in `.env.local`:
+Run `web/supabase/schema.sql` in the Supabase SQL editor only when you want cloud story persistence. For a fully local studio, set these values in `.env.local`:
 
 ```text
-GEMINI_API_KEY=...
-NEXT_PUBLIC_SUPABASE_URL=...
-SUPABASE_SERVICE_ROLE_KEY=...
-OPENAI_API_KEY=...
+GENERATION_PROVIDER=ollama
+OLLAMA_BASE_URL=http://shalini.local:11434
+OLLAMA_MODEL=qwen3.6:35b-a3b
+NARRATION_PROVIDER=kokoro
+KOKORO_PYTHON=/Users/sanzgiri/projects/slist/.venv/bin/python
+HOSIFY_PYTHON=/Users/sanzgiri/projects/hosify/venv/bin/python
+HOSIFY_SCRIPT=/Users/sanzgiri/projects/hosify/hos_simple.py
 ```
 
-`GEMINI_API_KEY` generates stories in production, Supabase persists them, and `OPENAI_API_KEY` enables hosted narration. For a private local UI, set `GENERATION_PROVIDER=ollama`, `OLLAMA_BASE_URL=http://shalini.local:11434`, and `OLLAMA_MODEL=qwen3.6:35b-a3b` instead of using Gemini. Without the provider and storage keys, the UI still runs with a deterministic demo fallback, but stories and audio are not persisted.
+The local app uses Ollama for text and Kokoro for narration. For cloud, set `GEMINI_API_KEY` and optional Supabase keys; the hosted app deliberately shows sample recordings instead of exposing arbitrary narration.
 
 ### Deploy
 
@@ -198,11 +216,10 @@ vercel
 vercel env add GEMINI_API_KEY
 vercel env add NEXT_PUBLIC_SUPABASE_URL
 vercel env add SUPABASE_SERVICE_ROLE_KEY
-vercel env add OPENAI_API_KEY
 vercel --prod
 ```
 
-After deployment, verify generation, story persistence, PDF download, narration, and MP3 playback. Never expose `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, or `OPENAI_API_KEY` in browser code.
+After deployment, verify generation, optional story persistence, PDF download for saved stories, and the public sample-audio gallery. Never expose `SUPABASE_SERVICE_ROLE_KEY` or `GEMINI_API_KEY` in browser code.
 
 ## Contents
 
@@ -210,10 +227,10 @@ After deployment, verify generation, story persistence, PDF download, narration,
 - `references/style_guide.md` — detailed craft guidance
 - `references/examples.md` — four calibration examples
 - `scripts/save_fable.py` — archive generated fables with dated metadata
-- `scripts/narrate.py` — Kokoro narration with presets, voice blending, and sidecars
+- `scripts/narrate.py` — Kokoro narration with blended presets, optional Hearts of Space ambience, and sidecars
 - `scripts/cover_art.py` — optional local Flux cover-art generation
 - `LICENSE` — MIT license
 
 ## Version
 
-1.4.0
+1.5.0

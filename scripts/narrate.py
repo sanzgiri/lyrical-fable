@@ -183,17 +183,27 @@ def run(command: list[str]) -> None:
         raise SystemExit(f"command failed: {' '.join(command[:3])}")
 
 
-def encode(wav_path: Path, output: Path, fmt: str, target_lufs: float) -> None:
+def encode(wav_path: Path, output: Path, fmt: str, target_lufs: float, normalize: bool = True) -> None:
     if fmt == "wav":
         shutil.move(str(wav_path), str(output))
         return
     if shutil.which("ffmpeg") is None:
         raise SystemExit("ffmpeg is required for mp3/m4a output; use --format wav instead")
     codec = ["-codec:a", "libmp3lame", "-qscale:a", "2"] if fmt == "mp3" else ["-c:a", "aac", "-b:a", "128k"]
+    command = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav_path)]
+    if normalize:
+        command.extend(["-af", f"loudnorm=I={target_lufs}:TP=-2:LRA=11"])
+    run([*command, *codec, str(output)])
+
+
+def apply_hos(input_wav: Path, output_wav: Path, preset: str, target_lufs: float,
+              hos_python: str, hos_script: str) -> None:
+    """Apply the local Hearts of Space ambience once, including loudness normalization."""
+    if not Path(hos_python).is_file() or not Path(hos_script).is_file():
+        raise SystemExit("HOS is not configured; set HOSIFY_PYTHON and HOSIFY_SCRIPT or omit --hos")
     run([
-        "ffmpeg", "-y", "-loglevel", "error", "-i", str(wav_path),
-        "-af", f"loudnorm=I={target_lufs}:TP=-2:LRA=11",
-        *codec, str(output),
+        hos_python, hos_script, str(input_wav), str(output_wav), "--preset", preset,
+        "--normalize", "--lufs", str(target_lufs),
     ])
 
 
@@ -244,6 +254,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cover-prompt", help="prompt for cover-art generation")
     parser.add_argument("--cover-host", default=os.environ.get("LOCAL_MODELS_HOST", "shalini.local"))
     parser.add_argument("--cover-port", type=int, default=8000)
+    parser.add_argument("--hos", action="store_true", help="apply local Hearts of Space ambience after narration")
+    parser.add_argument("--hos-preset", default="hos_smooth", help="hosify preset (default: hos_smooth)")
+    parser.add_argument("--hos-python", default=os.environ.get("HOSIFY_PYTHON", "/Users/sanzgiri/projects/hosify/venv/bin/python"), help="Python executable for hosify")
+    parser.add_argument("--hos-script", default=os.environ.get("HOSIFY_SCRIPT", "/Users/sanzgiri/projects/hosify/hos_simple.py"), help="path to hosify's hos_simple.py")
     parser.add_argument("--dry-run", action="store_true", help="print cleaned speech without rendering")
     parser.add_argument("--keep-wav", action="store_true", help="keep the intermediate WAV beside the output")
     args = parser.parse_args(argv)
@@ -305,9 +319,13 @@ def main(argv: list[str] | None = None) -> int:
     wav_path = temp_dir / "narration.wav"
     try:
         sf.write(str(wav_path), np.clip(audio, -1.0, 1.0), SAMPLE_RATE)
-        encode(wav_path, output, args.format, target_lufs)
+        rendered_wav = wav_path
+        if args.hos:
+            rendered_wav = temp_dir / "narration-hos.wav"
+            apply_hos(wav_path, rendered_wav, args.hos_preset, target_lufs, args.hos_python, args.hos_script)
+        encode(rendered_wav, output, args.format, target_lufs, normalize=not args.hos)
         if args.keep_wav and args.format != "wav":
-            shutil.copy2(wav_path, output.with_suffix(".wav"))
+            shutil.copy2(rendered_wav, output.with_suffix(".wav"))
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
