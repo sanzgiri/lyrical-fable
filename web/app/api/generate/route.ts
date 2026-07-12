@@ -35,24 +35,45 @@ function parseModelJson(raw: string) {
   return { title: value.title.trim(), body: value.body.trim() };
 }
 
+function parseOllamaFable(raw: string, subject: string) {
+  try {
+    return parseModelJson(raw);
+  } catch {
+    // Some local models ignore JSON mode but still return a complete fable.
+    // Preserve that original prose rather than replacing it with the demo fallback.
+    const cleaned = raw.replace(/^```(?:markdown)?\s*/i, "").replace(/```\s*$/i, "").trim();
+    const titleMatch = cleaned.match(/^(?:#\s*|title:\s*|\*\*)([^\n*]+?)(?:\*\*)?\s*\n+/i);
+    if (titleMatch) {
+      return { title: titleMatch[1].trim(), body: cleaned.slice(titleMatch[0].length).trim() };
+    }
+    return { title: `A Fable of ${subject}`, body: cleaned };
+  }
+}
+
 async function generateWithOllama(controls: FableControls) {
-  const baseUrl = process.env.OLLAMA_BASE_URL;
-  if (!baseUrl) return null;
-  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+  const configuredUrl = process.env.OLLAMA_BASE_URL;
+  if (!configuredUrl) return null;
+  // Use Ollama's native endpoint: unlike its OpenAI-compatible endpoint, it
+  // honors `think: false` for Qwen and preserves output tokens for the story.
+  const baseUrl = configuredUrl.replace(/\/?v1\/?$/, "").replace(/\/$/, "");
+  const predictions = { short: 3000, standard: 5000, long: 8000, epic: 12000 }[controls.length];
+  const response = await fetch(`${baseUrl}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: process.env.OLLAMA_MODEL || "qwen3.6:35b-a3b",
       messages: [{ role: "user", content: buildPrompt(controls) }],
-      temperature: 0.9,
-      max_tokens: 6000,
+      stream: false,
+      think: false,
+      format: "json",
+      options: { temperature: 0.9, num_predict: predictions },
     }),
   });
   if (!response.ok) throw new Error(`Ollama returned HTTP ${response.status}`);
   const data = await response.json();
-  const raw = data.choices?.[0]?.message?.content;
+  const raw = data.message?.content;
   if (!raw) throw new Error("Ollama returned no text");
-  return parseModelJson(raw);
+  return parseOllamaFable(raw, controls.subject);
 }
 
 async function generateWithGemini(controls: FableControls) {

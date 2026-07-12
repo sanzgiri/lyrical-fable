@@ -186,7 +186,7 @@ SUPABASE_SERVICE_ROLE_KEY=...
 OPENAI_API_KEY=...
 ```
 
-`GEMINI_API_KEY` generates stories in production, Supabase persists them, and `OPENAI_API_KEY` enables hosted narration. For a private local UI, set `GENERATION_PROVIDER=ollama`, `OLLAMA_BASE_URL=http://shalini.local:11434/v1`, and `OLLAMA_MODEL=qwen3.6:35b-a3b` instead of using Gemini. Without the provider and storage keys, the UI still runs with a deterministic demo fallback, but stories and audio are not persisted.
+`GEMINI_API_KEY` generates stories in production, Supabase persists them, and `OPENAI_API_KEY` enables hosted narration. For a private local UI, set `GENERATION_PROVIDER=ollama`, `OLLAMA_BASE_URL=http://shalini.local:11434`, and `OLLAMA_MODEL=qwen3.6:35b-a3b` instead of using Gemini. Without the provider and storage keys, the UI still runs with a deterministic demo fallback, but stories and audio are not persisted.
 
 ### Deploy
 
