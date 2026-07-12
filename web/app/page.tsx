@@ -188,7 +188,7 @@ export default function Home() {
 
         <section className="library" id="samples"><h3>Listen to examples</h3><p className="notice">The hosted studio offers these sample narrations. Full-fable narration, blended voices, and optional Hearts of Space ambience run locally.</p><div className="library-grid">{samples.map((sample) => <article className="story-card" key={sample.title}><strong>{sample.title}</strong><small>{sample.note}</small><p>{sample.text}</p><audio className="sample-audio" controls preload="none" src={sample.audio}>Your browser does not support audio playback.</audio></article>)}</div></section>
         {localLibrary && <section className="library"><h3>Local Fables</h3>{stories.length ? <div className="library-grid">{stories.map((item) => <button className="story-card" key={item.id || item.title} onClick={() => chooseStory(item)}><strong>{item.title}</strong><small>{item.created_at ? new Date(item.created_at).toLocaleDateString() : "This session"}</small></button>)}</div> : <p className="notice">New fables are saved outside this repository in {libraryPath || "your local library folder"}.</p>}</section>}
-        <footer className="footer">Lyrical Fable Studio · created by Ashutosh Sanzgiri</footer>
+        <footer className="footer"><span>Lyrical Fable Studio · Created by <a href="https://github.com/sanzgiri" target="_blank" rel="noreferrer">Ashutosh Sanzgiri</a></span><a href="/about">About the studio</a></footer>
       </div>
     </main>
   );
