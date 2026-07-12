@@ -155,6 +155,55 @@ Supported output formats are `m4a` (default), `mp3`, and `wav`. Useful options i
 - `--keep-wav` — preserve the intermediate WAV
 - `--dry-run` — print speech text without rendering
 
+## Studio UI
+
+The `web/` app provides a hosted writing studio with the core controls, a saved-story library, in-browser audio playback, PDF downloads, and MP3 downloads.
+
+### Architecture
+
+- **Host:** Vercel + Next.js
+- **Story generation:** server-side Gemini 2.5 Flash adapter in production, or local Ollama when the UI runs on the LAN
+- **Story storage:** Supabase Postgres
+- **Audio storage/playback:** Supabase Storage, with server-side OpenAI TTS
+- **PDF:** generated on demand by the server route
+- **Local mode:** use Pi with Ollama for private/local generation; Vercel cannot reach `shalini.local`
+
+### Run locally
+
+```bash
+cd web
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+Run `web/supabase/schema.sql` in the Supabase SQL editor, then set these server-side values in `.env.local`:
+
+```text
+GEMINI_API_KEY=...
+NEXT_PUBLIC_SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+OPENAI_API_KEY=...
+```
+
+`GEMINI_API_KEY` generates stories in production, Supabase persists them, and `OPENAI_API_KEY` enables hosted narration. For a private local UI, set `GENERATION_PROVIDER=ollama`, `OLLAMA_BASE_URL=http://shalini.local:11434/v1`, and `OLLAMA_MODEL=qwen3.6:35b-a3b` instead of using Gemini. Without the provider and storage keys, the UI still runs with a deterministic demo fallback, but stories and audio are not persisted.
+
+### Deploy
+
+From the repository root, set the Vercel project root directory to `web`, or deploy from `web`:
+
+```bash
+cd web
+vercel
+vercel env add GEMINI_API_KEY
+vercel env add NEXT_PUBLIC_SUPABASE_URL
+vercel env add SUPABASE_SERVICE_ROLE_KEY
+vercel env add OPENAI_API_KEY
+vercel --prod
+```
+
+After deployment, verify generation, story persistence, PDF download, narration, and MP3 playback. Never expose `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, or `OPENAI_API_KEY` in browser code.
+
 ## Contents
 
 - `SKILL.md` — workflow, model selection, saving, narration, and quality checklist
